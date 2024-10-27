@@ -111,8 +111,6 @@ class TesseraQ(BaseBlockwiseQuantization):
                 self.weight_clips = torch.load(os.path.join(self.clip_path, 'clips.pth'),
                                                map_location='cpu')
 
-        self.change_ratio = {}
-
     def block_forward(self, block, input_data=None):
         output = []
 
@@ -410,13 +408,6 @@ class TesseraQ(BaseBlockwiseQuantization):
                 w_shape = m.weight.shape
                 W = self.wquantizer.reshape_tensor(m.weight.data) / m.buf_scales
                 m.buf_rounding = m.buf_rounding - (W - torch.floor(W) > 0.5).float()
-
-                cr = torch.count_nonzero(m.buf_rounding) / m.buf_rounding.numel()
-                if n not in self.change_ratio:
-                    self.change_ratio[n] = 0
-                self.change_ratio[n] = self.change_ratio[n] + cr
-                logger.info('layer {}, change ratio: {}%'
-                            .format(n, self.change_ratio[n] / (self.block_idx + 1)))
                 m.buf_rounding *= 0.5 * m.buf_scales
                 m.buf_rounding = self.wquantizer.restore_tensor(m.buf_rounding, w_shape)
                 m.weight.data.add_(m.buf_rounding.to(self.model_dtype))
